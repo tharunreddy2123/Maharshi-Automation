@@ -1,0 +1,59 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: healthcheck-script
+
+data:
+  health-check.py: |
+    import subprocess
+    import smtplib
+    import os
+    from email.mime.text import MIMEText
+
+    pods = subprocess.getoutput("oc get pods")
+    deployments = subprocess.getoutput("oc get deployment")
+    services = subprocess.getoutput("oc get svc")
+    routes = subprocess.getoutput("oc get route")
+
+    report = f"""
+    OpenShift Health Check Report
+
+    PODS
+    -----------------
+    {pods}
+
+    DEPLOYMENTS
+    -----------------
+    {deployments}
+
+    SERVICES
+    -----------------
+    {services}
+
+    ROUTES
+    -----------------
+    {routes}
+    """
+
+    sender = os.environ['MAIL_USERNAME']
+    password = os.environ['MAIL_PASSWORD']
+
+    receiver = os.environ['MAIL_RECEIVER']
+
+    msg = MIMEText(report)
+
+    msg['Subject'] = 'OpenShift Health Check Report'
+    msg['From'] = sender
+    msg['To'] = receiver
+
+    server = smtplib.SMTP('smtp.gmail.com', 587)
+
+    server.starttls()
+
+    server.login(sender, password)
+
+    server.send_message(msg)
+
+    server.quit()
+
+    print("Email Sent Successfully")

@@ -1,0 +1,57 @@
+apiVersion: batch/v1
+kind: CronJob
+
+metadata:
+  name: openshift-healthcheck
+
+spec:
+  schedule: "*/10 * * * *"
+
+  jobTemplate:
+    spec:
+      template:
+        spec:
+
+          serviceAccountName: healthcheck-sa
+
+          restartPolicy: Never
+
+          containers:
+          - name: healthcheck
+
+            image: python:3.11
+
+            command:
+            - /bin/sh
+            - -c
+            - |
+              pip install kubernetes openshift
+              python /scripts/health-check.py
+
+            env:
+            - name: MAIL_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: mail-secret
+                  key: MAIL_USERNAME
+
+            - name: MAIL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mail-secret
+                  key: MAIL_PASSWORD
+
+            - name: MAIL_RECEIVER
+              valueFrom:
+                secretKeyRef:
+                  name: mail-secret
+                  key: MAIL_RECEIVER
+
+            volumeMounts:
+            - name: script-volume
+              mountPath: /scripts
+
+          volumes:
+          - name: script-volume
+            configMap:
+              name: healthcheck-script
