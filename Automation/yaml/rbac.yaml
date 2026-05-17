@@ -1,59 +1,48 @@
 apiVersion: v1
-kind: ConfigMap
+kind: ServiceAccount
 metadata:
-  name: healthcheck-script
+  name: healthcheck-sa
 
-data:
-  health-check.py: |
-    import subprocess
-    import smtplib
-    import os
-    from email.mime.text import MIMEText
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: healthcheck-role
 
-    pods = subprocess.getoutput("oc get pods")
-    deployments = subprocess.getoutput("oc get deployment")
-    services = subprocess.getoutput("oc get svc")
-    routes = subprocess.getoutput("oc get route")
+rules:
+- apiGroups: [""]
+  resources:
+  - pods
+  - services
+  verbs:
+  - get
+  - list
 
-    report = f"""
-    OpenShift Health Check Report
+- apiGroups: ["apps"]
+  resources:
+  - deployments
+  verbs:
+  - get
+  - list
 
-    PODS
-    -----------------
-    {pods}
+- apiGroups: ["route.openshift.io"]
+  resources:
+  - routes
+  verbs:
+  - get
+  - list
 
-    DEPLOYMENTS
-    -----------------
-    {deployments}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: healthcheck-rolebinding
 
-    SERVICES
-    -----------------
-    {services}
+subjects:
+- kind: ServiceAccount
+  name: healthcheck-sa
 
-    ROUTES
-    -----------------
-    {routes}
-    """
-
-    sender = os.environ['MAIL_USERNAME']
-    password = os.environ['MAIL_PASSWORD']
-
-    receiver = os.environ['MAIL_RECEIVER']
-
-    msg = MIMEText(report)
-
-    msg['Subject'] = 'OpenShift Health Check Report'
-    msg['From'] = sender
-    msg['To'] = receiver
-
-    server = smtplib.SMTP('smtp.gmail.com', 587)
-
-    server.starttls()
-
-    server.login(sender, password)
-
-    server.send_message(msg)
-
-    server.quit()
-
-    print("Email Sent Successfully")
+roleRef:
+  kind: Role
+  name: healthcheck-role
+  apiGroup: rbac.authorization.k8s.io
