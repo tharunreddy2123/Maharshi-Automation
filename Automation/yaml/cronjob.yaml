@@ -5,7 +5,7 @@ metadata:
   name: openshift-healthcheck
 
 spec:
-  schedule: "*/10 * * * *"
+  schedule: "*/1 * * * *"
 
   jobTemplate:
     spec:
